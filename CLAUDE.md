@@ -157,6 +157,10 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
   `ExtractIconEx` P/Invoke (`Get-ShellIcon`, MouseMover.ps1) — the only way to access indexed icons
   from a DLL's resource table from .NET/PowerShell. The indices were found empirically by rendering
   a scrollable preview grid of the DLL's icons (not officially documented, but stable since Vista).
+  `Icon.FromHandle` wraps the native `HICON` from `ExtractIconEx` without taking ownership of it —
+  `Icon.Dispose()` only releases the managed wrapper, not the underlying handle — so freeing it
+  requires an explicit `DestroyIcon` P/Invoke, called on `$iconRunning`/`$iconStopped`'s `.Handle`
+  in `Stop-MouseMover`.
 - Minimizing the window hides it to the tray; closing it (X or the tray's "Exit") exits for real.
   Teardown (stop/dispose timer, hide/dispose tray icon) lives in one `Stop-MouseMover` function,
   called from both `FormClosing` and the crash backstop below — "Exit" simply calls `$form.Close()`
@@ -179,17 +183,19 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
   instance: acquired with `New-Object Mutex($true, name, [ref]$createdNew)` before any UI is built
   (note `[ref]$createdNew` requires the variable to be pre-declared — `[ref]` can't target a
   not-yet-existing variable). If `$createdNew` is false, another instance owns it, so a message box
-  is shown and the script exits immediately. Released/disposed in `Stop-MouseMover`, guarded by
-  nulling `$script:singletonMutex` after disposal — `Stop-MouseMover` runs from both `FormClosing`
-  and the crash backstop, and releasing/disposing an already-disposed mutex throws. Kernel-owned
-  named mutexes are auto-released by Windows on process exit (including force-kill), so a crashed
+  is shown and the script exits immediately. Released/disposed in `Stop-MouseMover` — releasing or
+  disposing an already-released/disposed mutex throws, which is one reason the whole function is
+  guarded idempotent (see below). Kernel-owned named mutexes are auto-released by Windows on
+  process exit (including force-kill), so a crashed
   instance never permanently locks out a future one — except within the *same process* (see the
   `Application.Run`/same-session note above and the testing tip below).
 - A `try/finally` around `Application.Run` calls `Stop-MouseMover` even on a crash, as a backstop
   against ghost icons (dead `NotifyIcon` entries that linger in the tray, fully unresponsive,
   until the next sign-out/reboot — Explorer prunes them only when rebuilding the notification area).
-  `Dispose()` on an already-disposed `Timer`/`NotifyIcon` is a safe no-op, so it's fine for both
-  the normal-close path and this backstop to call the same teardown function.
+  Since `Stop-MouseMover` runs from both `FormClosing` and this backstop, it guards against running
+  twice with a `$script:stopped` flag — checked and set as the *very first* thing in the function
+  (before any teardown), so a second concurrent/re-entrant call returns immediately rather than
+  double-releasing the mutex or double-destroying icon handles.
 
 ### MouseMover.vbs — hidden launcher
 
