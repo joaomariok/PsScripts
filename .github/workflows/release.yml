@@ -1,0 +1,28 @@
+name: Release MouseMover
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'MouseMover.ps1'
+      - 'MouseMover.vbs'
+
+jobs:
+  zip-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Zip MouseMover
+        run: zip -j MouseMover.zip MouseMover.ps1 MouseMover.vbs
+
+      - name: Create or update latest release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest
+          files: MouseMover.zip
