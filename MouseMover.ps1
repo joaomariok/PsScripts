@@ -96,8 +96,8 @@ $timer = New-Object System.Windows.Forms.Timer
 # Standard-normal sample scaled by $stdDev, via the Box-Muller transform — .NET's Random has
 # no built-in Gaussian sampler. Symmetric about 0, so offsets land on either side equally often.
 function Get-GaussianOffset([double]$stdDev) {
-    $u1 = $script:rng.NextDouble()
-    $u2 = $script:rng.NextDouble()
+    $u1 = [Math]::Max($script:rng.NextDouble(), [double]::Epsilon)
+    $u2 = [Math]::Max($script:rng.NextDouble(), [double]::Epsilon)
     $z  = [Math]::Sqrt(-2 * [Math]::Log($u1)) * [Math]::Cos(2 * [Math]::PI * $u2)
     return $z * $stdDev
 }

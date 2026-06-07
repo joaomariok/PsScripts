@@ -88,7 +88,16 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
   Box-Muller transform (`.NET`'s `Random` has no built-in Gaussian sampler):
   `sqrt(-2*ln(u1)) * cos(2*pi*u2) * stdDev`. The `cos` term is symmetric about 0, so offsets land
   left/right (and up/down) of the cursor equally often — only the screen-edge clamp can introduce
-  asymmetry near the borders.
+  asymmetry near the borders. Both `u1` and `u2` are clamped to a `[double]::Epsilon` lower bound
+  (via `[Math]::Max($script:rng.NextDouble(), [double]::Epsilon)`) — `Random.NextDouble()` returns
+  values in `[0,1)`, and `u1 = 0` would make `Log(u1)` evaluate to `-Infinity`, propagate through
+  `sqrt` to `+Infinity`, and then throw an `OverflowException` when later cast with `[int]`. (The
+  failure mode is a direct overflow on cast, not `NaN` propagation — `Log(0)` is `-Infinity`, not
+  `NaN`.) `u2` is clamped too only for symmetry/consistency with `u1`, since `u2 = 0` is harmless
+  on its own (`cos(0) = 1`, no singularity). The probability of hitting this without the clamp is
+  on the order of `1 / 2^53` per call — for a timer ticking every several seconds, an expected
+  wait far longer than the age of the universe — so this closes a theoretical correctness gap
+  rather than fixing an observed bug.
 - `[MouseHelper]` is a small inline C# type (via `Add-Type`) wrapping `user32.dll`'s
   `GetCursorPos` (to detect real user movement) and `SendInput` (to reposition the cursor).
   `SendInput` is used instead of `SetCursorPos` because the latter repositions the cursor directly,
