@@ -48,7 +48,8 @@ A transcript log of each run is written to `C:\Windows\Logs\Cleanup-*.log` (the 
 A small WinForms GUI with a Start/Stop button and a system tray icon (which itself shows a green
 check or red X to reflect whether it's running). While running, it checks once
 per `IntervalSeconds` whether the cursor moved since the last check; if not (you've been idle), it
-jiggles the mouse to a random position on the primary screen — keeping the system/session from
+jiggles the mouse a short, randomized distance from its current spot (a Gaussian-distributed
+nudge, clamped to stay on the primary screen) — keeping the system/session from
 going idle without interfering while you're actively using the mouse. It also skips jiggling while
 the screen is locked, since there's no point moving the cursor when no one can see it.
 

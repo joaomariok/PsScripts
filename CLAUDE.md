@@ -75,7 +75,17 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 
 ### How it works
 
-- `param([int]$IntervalSeconds = 30)` — the timer ticks every `$IntervalSeconds`.
+- `param([int]$IntervalSeconds = 30, [int]$JiggleRadius = 20)` — the timer ticks every
+  `$IntervalSeconds`; `$JiggleRadius` is the standard deviation (in pixels) of the jiggle target's
+  offset from the current cursor position. Neither is exposed in the tray menu — both are
+  debug/advanced-user overrides passed at launch (`-IntervalSeconds`/`-JiggleRadius`).
+- When idle, the jiggle target is `Get-GaussianOffset $JiggleRadius` pixels away from the current
+  cursor on each axis (independently sampled), clamped to the primary screen's bounds with
+  `[Math]::Max`/`[Math]::Min` — a small, subtle nudge near the cursor rather than a uniform jump
+  anywhere on the screen. `Get-GaussianOffset` implements the Box-Muller transform (`.NET`'s
+  `Random` has no built-in Gaussian sampler): `sqrt(-2*ln(u1)) * cos(2*pi*u2) * stdDev`. The
+  `cos` term is symmetric about 0, so offsets land left/right (and up/down) of the cursor equally
+  often — only the screen-edge clamp can introduce asymmetry near the borders.
 - `[MouseHelper]` is a small inline C# type (via `Add-Type`) wrapping `user32.dll`'s
   `GetCursorPos` (to detect real user movement) and `SendInput` (to reposition the cursor).
   `SendInput` is used instead of `SetCursorPos` because the latter repositions the cursor directly,
