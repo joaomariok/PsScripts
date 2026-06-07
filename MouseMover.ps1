@@ -16,10 +16,26 @@ public class MouseHelper {
     public static extern bool GetCursorPos(out POINT lpPoint);
 
     [DllImport("user32.dll")]
-    public static extern bool SetCursorPos(int X, int Y);
+    public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct INPUT {
+        [FieldOffset(0)] public int type;
+        [FieldOffset(8)] public MOUSEINPUT mi;
+    }
 }
 "@
 
@@ -72,7 +88,20 @@ $timer.Add_Tick({
         $primary   = $screens[0].Bounds
         $targetX   = $script:rng.Next($primary.Left, $primary.Right)
         $targetY   = $script:rng.Next($primary.Top,  $primary.Bottom)
-        [MouseHelper]::SetCursorPos($targetX, $targetY) | Out-Null
+
+        $MOUSEEVENTF_MOVE     = 0x0001
+        $MOUSEEVENTF_ABSOLUTE = 0x8000
+        $mi = New-Object MouseHelper+MOUSEINPUT
+        $mi.dx      = [int](($targetX - $primary.Left) * 65535 / [Math]::Max(1, $primary.Width  - 1))
+        $mi.dy      = [int](($targetY - $primary.Top)  * 65535 / [Math]::Max(1, $primary.Height - 1))
+        $mi.dwFlags = $MOUSEEVENTF_MOVE -bor $MOUSEEVENTF_ABSOLUTE
+
+        $mouseInput = New-Object MouseHelper+INPUT
+        $mouseInput.type = 0  # INPUT_MOUSE
+        $mouseInput.mi   = $mi
+        $inputSize = [System.Runtime.InteropServices.Marshal]::SizeOf([type][MouseHelper+INPUT])
+        [MouseHelper]::SendInput(1, @($mouseInput), $inputSize) | Out-Null
+
         $p.X = $targetX
         $p.Y = $targetY
     }
