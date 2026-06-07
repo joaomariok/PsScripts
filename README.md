@@ -53,7 +53,8 @@ going idle without interfering while you're actively using the mouse. It also sk
 the screen is locked, since there's no point moving the cursor when no one can see it.
 
 Minimizing the window sends it to the tray — double-click the tray icon to bring it back, or use its
-right-click menu to toggle Start/Stop, pick a check interval (1/2/5/10/15/30/60/120 seconds), or
+right-click menu to toggle Start/Stop, pick a check interval (1/2/5/10/15/30/60/120 seconds),
+toggle "Run at startup", or
 Exit. Closing the window exits the app for good.
 
 Only one instance can run at a time — launching a second one shows a notice and exits immediately.
