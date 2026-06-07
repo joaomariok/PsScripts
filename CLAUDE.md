@@ -131,6 +131,16 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 - The `Add-Type` for `[MouseHelper]` is guarded with a `PSTypeName` check, since `Add-Type` can't
   redefine a type already loaded into the runspace — without the guard, re-running the script in
   the same session throws "type 'MouseHelper' already exists".
+- A named, `Global\`-scoped `Mutex` (`Global\MouseMover-SingleInstance`) enforces a single running
+  instance: acquired with `New-Object Mutex($true, name, [ref]$createdNew)` before any UI is built
+  (note `[ref]$createdNew` requires the variable to be pre-declared — `[ref]` can't target a
+  not-yet-existing variable). If `$createdNew` is false, another instance owns it, so a message box
+  is shown and the script exits immediately. Released/disposed in `Stop-MouseMover`, guarded by
+  nulling `$script:singletonMutex` after disposal — `Stop-MouseMover` runs from both `FormClosing`
+  and the crash backstop, and releasing/disposing an already-disposed mutex throws. Kernel-owned
+  named mutexes are auto-released by Windows on process exit (including force-kill), so a crashed
+  instance never permanently locks out a future one — except within the *same process* (see the
+  `Application.Run`/same-session note above and the testing tip below).
 - A `try/finally` around `Application.Run` calls `Stop-MouseMover` even on a crash, as a backstop
   against ghost icons (dead `NotifyIcon` entries that linger in the tray, fully unresponsive,
   until the next sign-out/reboot — Explorer prunes them only when rebuilding the notification area).
@@ -154,6 +164,15 @@ console window appears — useful for double-click launching.
 
 # Or launch hidden, detached from any console (double-click also works):
 .\MouseMover.vbs
+```
+
+Note: the singleton mutex is process-owned, and re-running `.\MouseMover.ps1` from an interactive
+session executes in that *same* process (just a child scope) — so a still-held mutex from a prior
+run blocks the new one until the terminal/process truly exits. To test multiple launches without
+closing the terminal, spawn a fresh child process instead:
+
+```powershell
+pwsh -File .\MouseMover.ps1
 ```
 
 ### Releases (.github/workflows/release.yml)
