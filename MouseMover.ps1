@@ -1,6 +1,6 @@
 param(
     [int]$IntervalSeconds = 30,
-    [int]$JiggleRadius    = 20
+    [int]$JiggleRadius    = 10
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -59,6 +59,7 @@ public class MouseHelper {
 $script:running  = $false
 $script:lastPos  = $null
 $script:rng      = New-Object System.Random
+$script:stopped  = $false
 
 # --- Run-at-startup (per-user registry Run key, no admin required) ---
 $startupRegPath   = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -112,17 +113,17 @@ $timer.Add_Tick({
     $moved = ($script:lastPos -ne $null) -and (($p.X -ne $script:lastPos.X) -or ($p.Y -ne $script:lastPos.Y))
 
     if (-not $moved) {
-        $screens   = [System.Windows.Forms.Screen]::AllScreens
-        $primary   = $screens[0].Bounds
-        $targetX   = [Math]::Max($primary.Left, [Math]::Min($primary.Right  - 1, $p.X + [int](Get-GaussianOffset $JiggleRadius)))
-        $targetY   = [Math]::Max($primary.Top,  [Math]::Min($primary.Bottom - 1, $p.Y + [int](Get-GaussianOffset $JiggleRadius)))
+        $vd        = [System.Windows.Forms.SystemInformation]::VirtualScreen
+        $targetX   = [Math]::Max($vd.Left, [Math]::Min($vd.Right  - 1, $p.X + [int](Get-GaussianOffset $JiggleRadius)))
+        $targetY   = [Math]::Max($vd.Top,  [Math]::Min($vd.Bottom - 1, $p.Y + [int](Get-GaussianOffset $JiggleRadius)))
 
-        $MOUSEEVENTF_MOVE     = 0x0001
-        $MOUSEEVENTF_ABSOLUTE = 0x8000
+        $MOUSEEVENTF_MOVE        = 0x0001
+        $MOUSEEVENTF_ABSOLUTE    = 0x8000
+        $MOUSEEVENTF_VIRTUALDESK = 0x4000
         $mi = New-Object MouseHelper+MOUSEINPUT
-        $mi.dx      = [int](($targetX - $primary.Left) * 65535 / [Math]::Max(1, $primary.Width  - 1))
-        $mi.dy      = [int](($targetY - $primary.Top)  * 65535 / [Math]::Max(1, $primary.Height - 1))
-        $mi.dwFlags = $MOUSEEVENTF_MOVE -bor $MOUSEEVENTF_ABSOLUTE
+        $mi.dx      = [int][Math]::Round(($targetX - $vd.Left) * 65535 / [Math]::Max(1, $vd.Width  - 1))
+        $mi.dy      = [int][Math]::Round(($targetY - $vd.Top)  * 65535 / [Math]::Max(1, $vd.Height - 1))
+        $mi.dwFlags = $MOUSEEVENTF_MOVE -bor $MOUSEEVENTF_ABSOLUTE -bor $MOUSEEVENTF_VIRTUALDESK
 
         $mouseInput = New-Object MouseHelper+INPUT
         $mouseInput.type = 0  # INPUT_MOUSE
@@ -184,8 +185,10 @@ $menuToggle.Add_Click({ Switch-Running })
 $trayMenu.Items.Add($menuToggle) | Out-Null
 
 function Set-Interval([int]$seconds) {
-    $script:IntervalSeconds = $seconds
+    $wasRunning = $timer.Enabled
+    if ($wasRunning) { $timer.Stop() }
     $timer.Interval = $seconds * 1000
+    if ($wasRunning) { $timer.Start() }
 
     foreach ($item in $menuInterval.DropDownItems) {
         $item.Checked = ($item.Tag -eq $seconds)
@@ -243,6 +246,7 @@ $trayIcon.Add_DoubleClick({
 
 # --- Closing the window exits for real; minimizing hides to tray ---
 function Stop-MouseMover {
+    if ($script:stopped) { return }
     $timer.Stop()
     $timer.Dispose()
     $trayIcon.Visible = $false
@@ -252,6 +256,7 @@ function Stop-MouseMover {
         $script:singletonMutex.Dispose()
         $script:singletonMutex = $null
     }
+    $script:stopped = $true
 }
 
 $form.Add_FormClosing({ Stop-MouseMover })
