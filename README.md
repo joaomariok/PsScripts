@@ -63,4 +63,10 @@ interfering while you're actively using the mouse.
 To run it detached, with no PowerShell console window, double-click `MouseMover.vbs` — it launches
 the script hidden via `pwsh` (falling back to `powershell` if PowerShell 7+ isn't installed).
 
+### Download
+
+A ready-to-use `MouseMover.zip` (containing `MouseMover.ps1` and `MouseMover.vbs`) is published on
+the [latest release](../../releases/latest) — rebuilt automatically whenever either file changes
+on `main` (or on demand via the workflow's manual trigger).
+
 See [CLAUDE.md](CLAUDE.md) for module internals and development notes.

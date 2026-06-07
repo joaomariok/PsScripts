@@ -6,6 +6,7 @@ on:
     paths:
       - 'MouseMover.ps1'
       - 'MouseMover.vbs'
+  workflow_dispatch:
 
 jobs:
   zip-and-release:

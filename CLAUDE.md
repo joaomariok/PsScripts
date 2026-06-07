@@ -106,3 +106,11 @@ console window appears — useful for double-click launching.
 # Or launch hidden, detached from any console (double-click also works):
 .\MouseMover.vbs
 ```
+
+### Releases (.github/workflows/release.yml)
+
+Pushes to `main` that touch `MouseMover.ps1` or `MouseMover.vbs` (or a manual `workflow_dispatch`
+run) zip both files into `MouseMover.zip` and publish/update a single rolling `latest` GitHub
+release with that zip attached — giving users a one-file download without needing git. The job
+declares `permissions: contents: write` so `softprops/action-gh-release` can create/update the
+release under the default `GITHUB_TOKEN`.
