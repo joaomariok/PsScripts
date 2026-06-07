@@ -7,6 +7,15 @@ Add-Type -AssemblyName System.Drawing
 
 [System.Windows.Forms.Application]::SetHighDpiMode([System.Windows.Forms.HighDpiMode]::PerMonitorV2) | Out-Null
 
+# Singleton enforcement: a named, machine-wide mutex. $createdNew is false if another
+# instance already owns it — bail out before building any UI.
+$createdNew = $false
+$script:singletonMutex = New-Object System.Threading.Mutex($true, 'Global\MouseMover-SingleInstance', [ref]$createdNew)
+if (-not $createdNew) {
+    [System.Windows.Forms.MessageBox]::Show('Mouse Mover is already running.', 'Mouse Mover', 'OK', 'Information') | Out-Null
+    exit
+}
+
 # Win32 API for getting cursor position and detecting movement.
 # Guarded: Add-Type can't redefine a type already loaded in the runspace.
 if (-not ([System.Management.Automation.PSTypeName]'MouseHelper').Type) {
@@ -207,6 +216,11 @@ function Stop-MouseMover {
     $timer.Dispose()
     $trayIcon.Visible = $false
     $trayIcon.Dispose()
+    if ($script:singletonMutex) {
+        $script:singletonMutex.ReleaseMutex()
+        $script:singletonMutex.Dispose()
+        $script:singletonMutex = $null
+    }
 }
 
 $form.Add_FormClosing({ Stop-MouseMover })
