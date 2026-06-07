@@ -1,5 +1,5 @@
 param(
-    [int]$IntervalSeconds = 60
+    [int]$IntervalSeconds = 30
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -7,7 +7,9 @@ Add-Type -AssemblyName System.Drawing
 
 [System.Windows.Forms.Application]::SetHighDpiMode([System.Windows.Forms.HighDpiMode]::PerMonitorV2) | Out-Null
 
-# Win32 API for getting cursor position and detecting movement
+# Win32 API for getting cursor position and detecting movement.
+# Guarded: Add-Type can't redefine a type already loaded in the runspace.
+if (-not ([System.Management.Automation.PSTypeName]'MouseHelper').Type) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -17,6 +19,9 @@ public class MouseHelper {
 
     [DllImport("user32.dll")]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
 
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
@@ -38,6 +43,7 @@ public class MouseHelper {
     }
 }
 "@
+}
 
 # --- State ---
 $script:running  = $false
@@ -66,9 +72,8 @@ $btn.Font      = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.
 $btn.FlatAppearance.BorderSize = 0
 $form.Controls.Add($btn)
 
-# --- Timer (fires every $IntervalSeconds) ---
-$timer          = New-Object System.Windows.Forms.Timer
-$timer.Interval = $IntervalSeconds * 1000
+# --- Timer (interval set later by Set-Interval, once the tray menu exists) ---
+$timer = New-Object System.Windows.Forms.Timer
 
 $timer.Add_Tick({
     if (-not $script:running) { return }
@@ -109,8 +114,18 @@ $timer.Add_Tick({
     $script:lastPos = $p
 })
 
-# --- Button click ---
-$btn.Add_Click({
+# --- Tray status icons (green check / red X from shell32.dll) ---
+function Get-ShellIcon([int]$index) {
+    $small = New-Object IntPtr[] 1
+    [MouseHelper]::ExtractIconEx("$env:SystemRoot\System32\shell32.dll", $index, $null, $small, 1) | Out-Null
+    return [System.Drawing.Icon]::FromHandle($small[0])
+}
+
+$iconRunning = Get-ShellIcon 294
+$iconStopped = Get-ShellIcon 131
+
+# --- Start/Stop toggle (shared by the button and the tray menu) ---
+function Switch-Running {
     $script:running = -not $script:running
 
     if ($script:running) {
@@ -120,21 +135,97 @@ $btn.Add_Click({
         $script:lastPos  = $p
         $timer.Start()
 
-        $btn.Text      = "Stop"
-        $btn.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
+        $btn.Text         = "Stop"
+        $btn.BackColor    = [System.Drawing.Color]::FromArgb(200, 60, 60)
+        $menuToggle.Text  = "Stop"
+        $trayIcon.Icon    = $iconRunning
     } else {
         $timer.Stop()
         $script:lastPos = $null
 
-        $btn.Text      = "Start"
-        $btn.BackColor = [System.Drawing.Color]::FromArgb(0, 180, 100)
+        $btn.Text         = "Start"
+        $btn.BackColor    = [System.Drawing.Color]::FromArgb(0, 180, 100)
+        $menuToggle.Text  = "Start"
+        $trayIcon.Icon    = $iconStopped
+    }
+}
+
+$btn.Add_Click({ Switch-Running })
+
+# --- Tray icon + context menu ---
+$trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$trayMenu.ShowImageMargin = $false
+
+$menuToggle = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuToggle.Text = "Start"
+$menuToggle.Add_Click({ Switch-Running })
+$trayMenu.Items.Add($menuToggle) | Out-Null
+
+function Set-Interval([int]$seconds) {
+    $script:IntervalSeconds = $seconds
+    $timer.Interval = $seconds * 1000
+
+    foreach ($item in $menuInterval.DropDownItems) {
+        $item.Checked = ($item.Tag -eq $seconds)
+    }
+}
+
+$menuInterval = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuInterval.Text = "Interval"
+foreach ($seconds in 1, 2, 5, 10, 15, 30, 60, 120) {
+    $item = New-Object System.Windows.Forms.ToolStripMenuItem
+    $item.Text = "${seconds}s"
+    $item.Tag  = $seconds
+    $item.Add_Click({ Set-Interval $this.Tag })
+    $menuInterval.DropDownItems.Add($item) | Out-Null
+}
+$trayMenu.Items.Add($menuInterval) | Out-Null
+Set-Interval $IntervalSeconds
+
+$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null
+
+$menuExit = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuExit.Text = "Exit"
+$menuExit.Add_Click({ $form.Close() })
+$trayMenu.Items.Add($menuExit) | Out-Null
+
+$trayIcon = New-Object System.Windows.Forms.NotifyIcon
+$trayIcon.Icon            = $iconStopped
+$trayIcon.Text            = "Mouse Mover"
+$trayIcon.ContextMenuStrip = $trayMenu
+$trayIcon.Visible         = $true
+
+$trayIcon.Add_DoubleClick({
+    $form.Show()
+    $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+    $form.Activate()
+})
+
+# --- Closing the window exits for real; minimizing hides to tray ---
+function Stop-MouseMover {
+    $timer.Stop()
+    $timer.Dispose()
+    $trayIcon.Visible = $false
+    $trayIcon.Dispose()
+}
+
+$form.Add_FormClosing({ Stop-MouseMover })
+
+$script:formLoaded = $false
+$form.Add_Shown({ $script:formLoaded = $true })
+
+$form.Add_Resize({
+    # WinForms can transiently report Minimized during initial layout; ignore until shown.
+    if ($script:formLoaded -and $form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized) {
+        # Restore before hiding — hiding while still Minimized leaves a stuck taskbar entry.
+        $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+        $form.Hide()
     }
 })
 
-# --- Cleanup on close ---
-$form.Add_FormClosing({
-    $timer.Stop()
-    $timer.Dispose()
-})
-
-[System.Windows.Forms.Application]::Run($form)
+try {
+    [System.Windows.Forms.Application]::Run($form)
+} finally {
+    # Backstop: ensures teardown runs even on a crash, avoiding ghost tray icons.
+    Stop-MouseMover
+}

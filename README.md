@@ -45,16 +45,21 @@ A transcript log of each run is written to `C:\Windows\Logs\Cleanup-*.log` (the 
 
 ## MouseMover
 
-A small WinForms GUI with a Start/Stop button. While running, it checks once per `IntervalSeconds`
-whether the cursor moved since the last check; if not (you've been idle), it jiggles the mouse to a
-random position on the primary screen — keeping the system/session from going idle without
-interfering while you're actively using the mouse. It also skips jiggling while the screen is
-locked, since there's no point moving the cursor when no one can see it.
+A small WinForms GUI with a Start/Stop button and a system tray icon (which itself shows a green
+check or red X to reflect whether it's running). While running, it checks once
+per `IntervalSeconds` whether the cursor moved since the last check; if not (you've been idle), it
+jiggles the mouse to a random position on the primary screen — keeping the system/session from
+going idle without interfering while you're actively using the mouse. It also skips jiggling while
+the screen is locked, since there's no point moving the cursor when no one can see it.
+
+Minimizing the window sends it to the tray — double-click the tray icon to bring it back, or use its
+right-click menu to toggle Start/Stop, pick a check interval (1/2/5/10/15/30/60/120 seconds), or
+Exit. Closing the window exits the app for good.
 
 ### Usage
 
 ```powershell
-# Default: check/move every 60 seconds
+# Default: check/move every 30 seconds
 .\MouseMover.ps1
 
 # Custom interval
