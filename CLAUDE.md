@@ -99,11 +99,21 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 - `Switch-Running` (the Start/Stop toggle) is a shared function rather than living inline in a
   click handler, since both the form's button and the tray context-menu item need to invoke it and
   stay in sync.
-- A `NotifyIcon` + `ContextMenuStrip` (with `ShowImageMargin = $false` — by default it reserves a
-  left gutter for icons even when none of the items use one) provide the tray icon
+- A "Run at startup" tray menu item (`$menuStartup`) toggles registration of `MouseMover.vbs` in
+  the per-user `HKCU:\...\CurrentVersion\Run` registry key (no admin rights needed) via
+  `Set-RunAtStartup`, mirroring `Set-Interval`'s pattern of driving the checked state from the
+  setter rather than relying on `CheckOnClick` (the underlying registry write/remove can be
+  inspected/fail, so the checkbox should reflect the actual outcome). Its checked state is
+  initialized at startup by *reading* the registry (`Get-ItemProperty`), not by calling
+  `Set-RunAtStartup` — calling the setter would rewrite the registry on every launch. The feature
+  is opt-in: a fresh install starts unchecked and unregistered.
+- A `NotifyIcon` + `ContextMenuStrip` provide the tray icon
   (tooltip "Mouse Mover") with "Start/Stop",
   an "Interval" submenu (predetermined values 1/2/5/10/15/30/60/120s, radio-style via `Set-Interval`
-  checking only the matching `ToolStripMenuItem` by its `Tag`), a separator, and "Exit". Double-
+  checking only the matching `ToolStripMenuItem` by its `Tag`), "Run at startup" (see below), a
+  separator, and "Exit". Note: `ShowImageMargin` is left at its default (`$true`) — both the
+  Interval items and "Run at startup" rely on `.Checked` to render a checkmark, which needs that
+  left gutter to be visible. Double-
   clicking the icon restores the form (`Show`, `WindowState = Normal`, `Activate`). `Set-Interval`
   is called once at startup with `$IntervalSeconds` so the timer and checked menu item start in sync
   — note that a custom `-IntervalSeconds` value outside the predetermined list leaves no item checked.

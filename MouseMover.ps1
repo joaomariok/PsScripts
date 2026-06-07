@@ -59,6 +59,10 @@ $script:running  = $false
 $script:lastPos  = $null
 $script:rng      = New-Object System.Random
 
+# --- Run-at-startup (per-user registry Run key, no admin required) ---
+$startupRegPath   = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+$startupValueName = 'MouseMover'
+
 # --- Form ---
 $form = New-Object System.Windows.Forms.Form
 $form.Text            = "Mouse Mover"
@@ -163,7 +167,6 @@ $btn.Add_Click({ Switch-Running })
 
 # --- Tray icon + context menu ---
 $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
-$trayMenu.ShowImageMargin = $false
 
 $menuToggle = New-Object System.Windows.Forms.ToolStripMenuItem
 $menuToggle.Text = "Start"
@@ -190,6 +193,24 @@ foreach ($seconds in 1, 2, 5, 10, 15, 30, 60, 120) {
 }
 $trayMenu.Items.Add($menuInterval) | Out-Null
 Set-Interval $IntervalSeconds
+
+# --- Run-at-startup toggle (registers/unregisters MouseMover.vbs in the per-user Run key) ---
+function Set-RunAtStartup([bool]$enabled) {
+    if ($enabled) {
+        Set-ItemProperty -Path $startupRegPath -Name $startupValueName -Value "`"$PSScriptRoot\MouseMover.vbs`""
+    } else {
+        Remove-ItemProperty -Path $startupRegPath -Name $startupValueName -ErrorAction SilentlyContinue
+    }
+    $menuStartup.Checked = $enabled
+}
+
+$menuStartup = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuStartup.Text = "Run at startup"
+$menuStartup.Add_Click({ Set-RunAtStartup (-not $menuStartup.Checked) })
+$trayMenu.Items.Add($menuStartup) | Out-Null
+
+# Reflect current registry state without writing to it (avoids rewriting on every launch).
+$menuStartup.Checked = [bool](Get-ItemProperty -Path $startupRegPath -Name $startupValueName -ErrorAction SilentlyContinue)
 
 $trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null
 
