@@ -57,6 +57,10 @@ $timer.Interval = $IntervalSeconds * 1000
 $timer.Add_Tick({
     if (-not $script:running) { return }
 
+    # Skip while the screen is locked: LogonUI.exe is the lock-screen process, and
+    # there's no point jiggling the cursor (or fighting the unlock) when no one can see it.
+    if (Get-Process -Name "LogonUI" -ErrorAction SilentlyContinue) { return }
+
     # Check whether the user moved the mouse since the last tick
     $p = New-Object MouseHelper+POINT
     [MouseHelper]::GetCursorPos([ref]$p) | Out-Null
