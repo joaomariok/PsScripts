@@ -77,7 +77,14 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 
 - `param([int]$IntervalSeconds = 60)` — the timer ticks every `$IntervalSeconds`.
 - `[MouseHelper]` is a small inline C# type (via `Add-Type`) wrapping `user32.dll`'s
-  `GetCursorPos`/`SetCursorPos` — used to detect real user movement and to reposition the cursor.
+  `GetCursorPos` (to detect real user movement) and `SendInput` (to reposition the cursor).
+  `SendInput` is used instead of `SetCursorPos` because the latter repositions the cursor directly,
+  bypassing the input pipeline — Windows' lock timer (`GetLastInputInfo`) wouldn't see it as real
+  activity and would still lock the workstation on schedule. `SendInput` requires building an
+  `INPUT`/`MOUSEINPUT` struct pair and normalizing target coordinates to 0..65535 via
+  `MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE`. Note: the `MOUSEINPUT` must be built as its own
+  variable and assigned wholesale to `INPUT.mi` — assigning to nested fields directly
+  (`$mouseInput.mi.dx = ...`) silently mutates a copy, since structs are value types in PowerShell.
 - `SetHighDpiMode(PerMonitorV2)` + `AutoScaleMode = None` / `AutoScaleDimensions = (96, 96)` are set
   so the declared form size (200x120) renders at its literal pixel size on any display, instead of
   being bitmap-stretched by Windows DPI virtualization or rescaled by WinForms' own layout logic.
