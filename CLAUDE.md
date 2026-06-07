@@ -84,9 +84,11 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 - The button uses `Dock = Fill` with the form's `Padding` providing the margin — `Margin` on a
   child control has no effect for `Dock = Fill` inside a plain `Form` (only layout-engine
   containers like `TableLayoutPanel`/`FlowLayoutPanel` honor it), so the margin must live on the form.
-- On each tick: compares the current cursor position to the position recorded on the previous tick.
-  If it changed, the user is active and the tick is skipped; if not, the cursor jumps to a random
-  point within the primary screen's bounds. This keeps the mover from fighting active mouse use.
+- On each tick: first checks for a running `LogonUI` process (the lock-screen owner) and bails out
+  if found — no point jiggling the cursor while the workstation is locked. Otherwise it compares
+  the current cursor position to the position recorded on the previous tick. If it changed, the
+  user is active and the tick is skipped; if not, the cursor jumps to a random point within the
+  primary screen's bounds. This keeps the mover from fighting active mouse use.
 
 ### MouseMover.vbs — hidden launcher
 
