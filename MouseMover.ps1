@@ -7,7 +7,9 @@ Add-Type -AssemblyName System.Drawing
 
 [System.Windows.Forms.Application]::SetHighDpiMode([System.Windows.Forms.HighDpiMode]::PerMonitorV2) | Out-Null
 
-# Win32 API for getting cursor position and detecting movement
+# Win32 API for getting cursor position and detecting movement.
+# Guarded: Add-Type can't redefine a type already loaded in the runspace.
+if (-not ([System.Management.Automation.PSTypeName]'MouseHelper').Type) {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -38,6 +40,7 @@ public class MouseHelper {
     }
 }
 "@
+}
 
 # --- State ---
 $script:running  = $false
@@ -109,8 +112,8 @@ $timer.Add_Tick({
     $script:lastPos = $p
 })
 
-# --- Button click ---
-$btn.Add_Click({
+# --- Start/Stop toggle (shared by the button and the tray menu) ---
+function Switch-Running {
     $script:running = -not $script:running
 
     if ($script:running) {
@@ -120,21 +123,71 @@ $btn.Add_Click({
         $script:lastPos  = $p
         $timer.Start()
 
-        $btn.Text      = "Stop"
-        $btn.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
+        $btn.Text         = "Stop"
+        $btn.BackColor    = [System.Drawing.Color]::FromArgb(200, 60, 60)
+        $menuToggle.Text  = "Stop"
     } else {
         $timer.Stop()
         $script:lastPos = $null
 
-        $btn.Text      = "Start"
-        $btn.BackColor = [System.Drawing.Color]::FromArgb(0, 180, 100)
+        $btn.Text         = "Start"
+        $btn.BackColor    = [System.Drawing.Color]::FromArgb(0, 180, 100)
+        $menuToggle.Text  = "Start"
+    }
+}
+
+$btn.Add_Click({ Switch-Running })
+
+# --- Tray icon + context menu ---
+$trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
+
+$menuToggle = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuToggle.Text = "Start"
+$menuToggle.Add_Click({ Switch-Running })
+$trayMenu.Items.Add($menuToggle) | Out-Null
+
+$menuExit = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuExit.Text = "Exit"
+$menuExit.Add_Click({ $form.Close() })
+$trayMenu.Items.Add($menuExit) | Out-Null
+
+$trayIcon = New-Object System.Windows.Forms.NotifyIcon
+$trayIcon.Icon            = [System.Drawing.SystemIcons]::Application
+$trayIcon.Text            = "Mouse Mover"
+$trayIcon.ContextMenuStrip = $trayMenu
+$trayIcon.Visible         = $true
+
+$trayIcon.Add_DoubleClick({
+    $form.Show()
+    $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+    $form.Activate()
+})
+
+# --- Closing the window exits for real; minimizing hides to tray ---
+function Stop-MouseMover {
+    $timer.Stop()
+    $timer.Dispose()
+    $trayIcon.Visible = $false
+    $trayIcon.Dispose()
+}
+
+$form.Add_FormClosing({ Stop-MouseMover })
+
+$script:formLoaded = $false
+$form.Add_Shown({ $script:formLoaded = $true })
+
+$form.Add_Resize({
+    # WinForms can transiently report Minimized during initial layout; ignore until shown.
+    if ($script:formLoaded -and $form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized) {
+        # Restore before hiding — hiding while still Minimized leaves a stuck taskbar entry.
+        $form.WindowState = [System.Windows.Forms.FormWindowState]::Normal
+        $form.Hide()
     }
 })
 
-# --- Cleanup on close ---
-$form.Add_FormClosing({
-    $timer.Stop()
-    $timer.Dispose()
-})
-
-[System.Windows.Forms.Application]::Run($form)
+try {
+    [System.Windows.Forms.Application]::Run($form)
+} finally {
+    # Backstop: ensures teardown runs even on a crash, avoiding ghost tray icons.
+    Stop-MouseMover
+}

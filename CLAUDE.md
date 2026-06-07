@@ -96,6 +96,35 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
   the current cursor position to the position recorded on the previous tick. If it changed, the
   user is active and the tick is skipped; if not, the cursor jumps to a random point within the
   primary screen's bounds. This keeps the mover from fighting active mouse use.
+- `Switch-Running` (the Start/Stop toggle) is a shared function rather than living inline in a
+  click handler, since both the form's button and the tray context-menu item need to invoke it and
+  stay in sync.
+- A `NotifyIcon` + `ContextMenuStrip` provide the tray icon (tooltip "Mouse Mover", icon via
+  `[System.Drawing.SystemIcons]::Application`) with "Start/Stop" and "Exit" items. Double-clicking
+  the icon restores the form (`Show`, `WindowState = Normal`, `Activate`).
+- Minimizing the window hides it to the tray; closing it (X or the tray's "Exit") exits for real.
+  Teardown (stop/dispose timer, hide/dispose tray icon) lives in one `Stop-MouseMover` function,
+  called from both `FormClosing` and the crash backstop below — "Exit" simply calls `$form.Close()`
+  to funnel into the same `FormClosing` path rather than duplicating the cleanup.
+- Two WinForms/PowerShell gotchas drove specific design choices here:
+  - `Add_Resize` guards against hiding on `Minimized` with a `$script:formLoaded` flag (set in
+    `Add_Shown`) — WinForms can transiently report `Minimized` during initial layout (e.g. under
+    `PerMonitorV2` DPI scaling), and without the guard the form blinks open and immediately
+    hides itself on every launch. It also restores `WindowState` to `Normal` before calling
+    `Hide()` — hiding while still `Minimized` leaves a stuck/ghost entry in the taskbar.
+  - The app **never calls `[Application]::Exit()`** — it tears down WinForms' static per-process
+    message-loop state, so any later `Application.Run` in the *same* process returns instantly
+    without showing a form (only surfaces when re-running the script in the same terminal session;
+    real launches via `.vbs`/double-click always use a fresh process). Closing the form for real
+    and letting `Application.Run` return naturally avoids this entirely.
+- The `Add-Type` for `[MouseHelper]` is guarded with a `PSTypeName` check, since `Add-Type` can't
+  redefine a type already loaded into the runspace — without the guard, re-running the script in
+  the same session throws "type 'MouseHelper' already exists".
+- A `try/finally` around `Application.Run` calls `Stop-MouseMover` even on a crash, as a backstop
+  against ghost icons (dead `NotifyIcon` entries that linger in the tray, fully unresponsive,
+  until the next sign-out/reboot — Explorer prunes them only when rebuilding the notification area).
+  `Dispose()` on an already-disposed `Timer`/`NotifyIcon` is a safe no-op, so it's fine for both
+  the normal-close path and this backstop to call the same teardown function.
 
 ### MouseMover.vbs — hidden launcher
 
