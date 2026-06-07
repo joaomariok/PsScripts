@@ -1,5 +1,6 @@
 param(
-    [int]$IntervalSeconds = 30
+    [int]$IntervalSeconds = 30,
+    [int]$JiggleRadius    = 20
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -88,6 +89,15 @@ $form.Controls.Add($btn)
 # --- Timer (interval set later by Set-Interval, once the tray menu exists) ---
 $timer = New-Object System.Windows.Forms.Timer
 
+# Standard-normal sample scaled by $stdDev, via the Box-Muller transform — .NET's Random has
+# no built-in Gaussian sampler. Symmetric about 0, so offsets land on either side equally often.
+function Get-GaussianOffset([double]$stdDev) {
+    $u1 = $script:rng.NextDouble()
+    $u2 = $script:rng.NextDouble()
+    $z  = [Math]::Sqrt(-2 * [Math]::Log($u1)) * [Math]::Cos(2 * [Math]::PI * $u2)
+    return $z * $stdDev
+}
+
 $timer.Add_Tick({
     if (-not $script:running) { return }
 
@@ -104,8 +114,8 @@ $timer.Add_Tick({
     if (-not $moved) {
         $screens   = [System.Windows.Forms.Screen]::AllScreens
         $primary   = $screens[0].Bounds
-        $targetX   = $script:rng.Next($primary.Left, $primary.Right)
-        $targetY   = $script:rng.Next($primary.Top,  $primary.Bottom)
+        $targetX   = [Math]::Max($primary.Left, [Math]::Min($primary.Right  - 1, $p.X + [int](Get-GaussianOffset $JiggleRadius)))
+        $targetY   = [Math]::Max($primary.Top,  [Math]::Min($primary.Bottom - 1, $p.Y + [int](Get-GaussianOffset $JiggleRadius)))
 
         $MOUSEEVENTF_MOVE     = 0x0001
         $MOUSEEVENTF_ABSOLUTE = 0x8000
