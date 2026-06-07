@@ -1,6 +1,7 @@
 # Scripts
 
-Personal PowerShell scripts. Currently contains the **Cleanup** module — a Windows system-cleanup tool.
+Personal PowerShell scripts. Contains the **Cleanup** module — a Windows system-cleanup tool — and
+**MouseMover**, a small WinForms utility that nudges the mouse to keep the system from going idle.
 
 ## Setup
 
@@ -41,5 +42,25 @@ Every cleanup step supports `-WhatIf`/`-Confirm` (via `SupportsShouldProcess`), 
 preview what will happen before committing to it.
 
 A transcript log of each run is written to `C:\Windows\Logs\Cleanup-*.log` (the 5 most recent are kept).
+
+## MouseMover
+
+A small WinForms GUI with a Start/Stop button. While running, it checks once per `IntervalSeconds`
+whether the cursor moved since the last check; if not (you've been idle), it jiggles the mouse to a
+random position on the primary screen — keeping the system/session from going idle without
+interfering while you're actively using the mouse.
+
+### Usage
+
+```powershell
+# Default: check/move every 60 seconds
+.\MouseMover.ps1
+
+# Custom interval
+.\MouseMover.ps1 -IntervalSeconds 30
+```
+
+To run it detached, with no PowerShell console window, double-click `MouseMover.vbs` — it launches
+the script hidden via `pwsh` (falling back to `powershell` if PowerShell 7+ isn't installed).
 
 See [CLAUDE.md](CLAUDE.md) for module internals and development notes.
