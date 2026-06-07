@@ -33,6 +33,9 @@ public class MouseHelper {
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
 
+    [DllImport("user32.dll")]
+    public static extern bool DestroyIcon(IntPtr hIcon);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
 
@@ -247,16 +250,19 @@ $trayIcon.Add_DoubleClick({
 # --- Closing the window exits for real; minimizing hides to tray ---
 function Stop-MouseMover {
     if ($script:stopped) { return }
+    $script:stopped = $true
+
     $timer.Stop()
     $timer.Dispose()
     $trayIcon.Visible = $false
     $trayIcon.Dispose()
+    [MouseHelper]::DestroyIcon($iconRunning.Handle) | Out-Null
+    [MouseHelper]::DestroyIcon($iconStopped.Handle) | Out-Null
     if ($script:singletonMutex) {
         $script:singletonMutex.ReleaseMutex()
         $script:singletonMutex.Dispose()
         $script:singletonMutex = $null
     }
-    $script:stopped = $true
 }
 
 $form.Add_FormClosing({ Stop-MouseMover })
