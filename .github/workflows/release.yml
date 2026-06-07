@@ -21,9 +21,18 @@ jobs:
       - name: Zip MouseMover
         run: zip -j MouseMover.zip MouseMover.ps1 MouseMover.vbs
 
-      - name: Create or update latest release
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: Latest
+          tag_name: v${{ github.run_number }}
+          name: v${{ github.run_number }}
+          make_latest: true
           files: MouseMover.zip
+
+      - name: Prune old releases
+        uses: dev-drprasad/delete-older-releases@v0.3.4
+        with:
+          keep_latest: 2
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
