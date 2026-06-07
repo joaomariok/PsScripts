@@ -99,9 +99,15 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 - `Switch-Running` (the Start/Stop toggle) is a shared function rather than living inline in a
   click handler, since both the form's button and the tray context-menu item need to invoke it and
   stay in sync.
-- A `NotifyIcon` + `ContextMenuStrip` provide the tray icon (tooltip "Mouse Mover", icon via
-  `[System.Drawing.SystemIcons]::Application`) with "Start/Stop" and "Exit" items. Double-clicking
-  the icon restores the form (`Show`, `WindowState = Normal`, `Activate`).
+- A `NotifyIcon` + `ContextMenuStrip` provide the tray icon (tooltip "Mouse Mover") with "Start/Stop"
+  and "Exit" items. Double-clicking the icon restores the form (`Show`, `WindowState = Normal`,
+  `Activate`).
+- The tray icon itself reflects running state — a green check (index 294) while active, a red X
+  (index 131) while idle — swapped in `Switch-Running` alongside the button/menu text and color.
+  Neither exists in `System.Drawing.SystemIcons`, so they're pulled from `shell32.dll` via the
+  `ExtractIconEx` P/Invoke (`Get-ShellIcon`, MouseMover.ps1) — the only way to access indexed icons
+  from a DLL's resource table from .NET/PowerShell. The indices were found empirically by rendering
+  a scrollable preview grid of the DLL's icons (not officially documented, but stable since Vista).
 - Minimizing the window hides it to the tray; closing it (X or the tray's "Exit") exits for real.
   Teardown (stop/dispose timer, hide/dispose tray icon) lives in one `Stop-MouseMover` function,
   called from both `FormClosing` and the crash backstop below — "Exit" simply calls `$form.Close()`

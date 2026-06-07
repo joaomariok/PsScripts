@@ -20,6 +20,9 @@ public class MouseHelper {
     [DllImport("user32.dll")]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int ExtractIconEx(string lpszFile, int nIconIndex, IntPtr[] phiconLarge, IntPtr[] phiconSmall, int nIcons);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct POINT { public int X; public int Y; }
 
@@ -112,6 +115,16 @@ $timer.Add_Tick({
     $script:lastPos = $p
 })
 
+# --- Tray status icons (green check / red X from shell32.dll) ---
+function Get-ShellIcon([int]$index) {
+    $small = New-Object IntPtr[] 1
+    [MouseHelper]::ExtractIconEx("$env:SystemRoot\System32\shell32.dll", $index, $null, $small, 1) | Out-Null
+    return [System.Drawing.Icon]::FromHandle($small[0])
+}
+
+$iconRunning = Get-ShellIcon 294
+$iconStopped = Get-ShellIcon 131
+
 # --- Start/Stop toggle (shared by the button and the tray menu) ---
 function Switch-Running {
     $script:running = -not $script:running
@@ -126,6 +139,7 @@ function Switch-Running {
         $btn.Text         = "Stop"
         $btn.BackColor    = [System.Drawing.Color]::FromArgb(200, 60, 60)
         $menuToggle.Text  = "Stop"
+        $trayIcon.Icon    = $iconRunning
     } else {
         $timer.Stop()
         $script:lastPos = $null
@@ -133,6 +147,7 @@ function Switch-Running {
         $btn.Text         = "Start"
         $btn.BackColor    = [System.Drawing.Color]::FromArgb(0, 180, 100)
         $menuToggle.Text  = "Start"
+        $trayIcon.Icon    = $iconStopped
     }
 }
 
@@ -152,7 +167,7 @@ $menuExit.Add_Click({ $form.Close() })
 $trayMenu.Items.Add($menuExit) | Out-Null
 
 $trayIcon = New-Object System.Windows.Forms.NotifyIcon
-$trayIcon.Icon            = [System.Drawing.SystemIcons]::Application
+$trayIcon.Icon            = $iconStopped
 $trayIcon.Text            = "Mouse Mover"
 $trayIcon.ContextMenuStrip = $trayMenu
 $trayIcon.Visible         = $true
