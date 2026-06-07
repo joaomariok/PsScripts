@@ -75,26 +75,50 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 
 ### How it works
 
-- `param([int]$IntervalSeconds = 30, [int]$JiggleRadius = 20)` — the timer ticks every
+- `param([int]$IntervalSeconds = 30, [int]$JiggleRadius = 10)` — the timer ticks every
   `$IntervalSeconds`; `$JiggleRadius` is the standard deviation (in pixels) of the jiggle target's
   offset from the current cursor position. Neither is exposed in the tray menu — both are
   debug/advanced-user overrides passed at launch (`-IntervalSeconds`/`-JiggleRadius`).
 - When idle, the jiggle target is `Get-GaussianOffset $JiggleRadius` pixels away from the current
-  cursor on each axis (independently sampled), clamped to the primary screen's bounds with
-  `[Math]::Max`/`[Math]::Min` — a small, subtle nudge near the cursor rather than a uniform jump
-  anywhere on the screen. `Get-GaussianOffset` implements the Box-Muller transform (`.NET`'s
-  `Random` has no built-in Gaussian sampler): `sqrt(-2*ln(u1)) * cos(2*pi*u2) * stdDev`. The
-  `cos` term is symmetric about 0, so offsets land left/right (and up/down) of the cursor equally
-  often — only the screen-edge clamp can introduce asymmetry near the borders.
+  cursor on each axis (independently sampled), clamped to
+  `[System.Windows.Forms.SystemInformation]::VirtualScreen` (the bounding rectangle of *all*
+  monitors, which can have a non-zero/negative `Left`/`Top` if the primary monitor isn't at the
+  virtual desktop's origin) with `[Math]::Max`/`[Math]::Min` — a small, subtle nudge near the
+  cursor rather than a uniform jump anywhere on the screen. `Get-GaussianOffset` implements the
+  Box-Muller transform (`.NET`'s `Random` has no built-in Gaussian sampler):
+  `sqrt(-2*ln(u1)) * cos(2*pi*u2) * stdDev`. The `cos` term is symmetric about 0, so offsets land
+  left/right (and up/down) of the cursor equally often — only the screen-edge clamp can introduce
+  asymmetry near the borders.
 - `[MouseHelper]` is a small inline C# type (via `Add-Type`) wrapping `user32.dll`'s
   `GetCursorPos` (to detect real user movement) and `SendInput` (to reposition the cursor).
   `SendInput` is used instead of `SetCursorPos` because the latter repositions the cursor directly,
   bypassing the input pipeline — Windows' lock timer (`GetLastInputInfo`) wouldn't see it as real
   activity and would still lock the workstation on schedule. `SendInput` requires building an
   `INPUT`/`MOUSEINPUT` struct pair and normalizing target coordinates to 0..65535 via
-  `MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE`. Note: the `MOUSEINPUT` must be built as its own
-  variable and assigned wholesale to `INPUT.mi` — assigning to nested fields directly
-  (`$mouseInput.mi.dx = ...`) silently mutates a copy, since structs are value types in PowerShell.
+  `MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK`. Note: the `MOUSEINPUT` must
+  be built as its own variable and assigned wholesale to `INPUT.mi` — assigning to nested fields
+  directly (`$mouseInput.mi.dx = ...`) silently mutates a copy, since structs are value types in
+  PowerShell.
+- Three subtleties in that `SendInput` normalization, each diagnosed by symptom:
+  - **`MOUSEEVENTF_VIRTUALDESK` is required alongside `MOUSEEVENTF_ABSOLUTE`** whenever the
+    normalized 0..65535 range represents the *virtual* desktop (all monitors) rather than just the
+    primary monitor — without it, Windows maps the absolute coordinates onto the primary monitor
+    only, so on a multi-monitor system the resulting cursor position collapses toward the primary
+    monitor's portion of the range. Symptom looked like the cursor steadily converging toward the
+    left/top edge ("getting about halfway closer to the border each tick") rather than jiggling in
+    place. The clamp rectangle and the normalization divisor must be the *same* rectangle
+    (`VirtualScreen` + this flag, or a single monitor's `Bounds` without it) — mixing them (e.g.
+    clamping to the primary screen while normalizing/flagging for the virtual desktop)
+    reintroduces the mismatch.
+  - **Round, don't truncate, when normalizing to 0..65535** (`[int][Math]::Round(...)`, not bare
+    `[int](...)`) — PowerShell's `[int]` cast truncates toward zero, biasing every converted
+    coordinate slightly low. Since each tick's baseline is the *actual* resulting cursor position
+    (read back via `GetCursorPos`), that small per-tick truncation error compounds, slowly
+    dragging the cursor toward the low-coordinate (left/top) corner over many ticks even with the
+    `VIRTUALDESK` flag in place.
+  - The clamp intentionally lets the jiggle roam the full multi-monitor area rather than confining
+    it to the monitor the cursor started on — simpler (one rectangle serves both the clamp and the
+    normalization) and still serves the anti-idle/anti-lock purpose either way.
 - `SetHighDpiMode(PerMonitorV2)` + `AutoScaleMode = None` / `AutoScaleDimensions = (96, 96)` are set
   so the declared form size (200x120) renders at its literal pixel size on any display, instead of
   being bitmap-stretched by Windows DPI virtualization or rescaled by WinForms' own layout logic.
