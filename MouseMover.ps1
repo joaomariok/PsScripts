@@ -1,5 +1,5 @@
 param(
-    [int]$IntervalSeconds = 60
+    [int]$IntervalSeconds = 30
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -72,9 +72,8 @@ $btn.Font      = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.
 $btn.FlatAppearance.BorderSize = 0
 $form.Controls.Add($btn)
 
-# --- Timer (fires every $IntervalSeconds) ---
-$timer          = New-Object System.Windows.Forms.Timer
-$timer.Interval = $IntervalSeconds * 1000
+# --- Timer (interval set later by Set-Interval, once the tray menu exists) ---
+$timer = New-Object System.Windows.Forms.Timer
 
 $timer.Add_Tick({
     if (-not $script:running) { return }
@@ -155,11 +154,35 @@ $btn.Add_Click({ Switch-Running })
 
 # --- Tray icon + context menu ---
 $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
+$trayMenu.ShowImageMargin = $false
 
 $menuToggle = New-Object System.Windows.Forms.ToolStripMenuItem
 $menuToggle.Text = "Start"
 $menuToggle.Add_Click({ Switch-Running })
 $trayMenu.Items.Add($menuToggle) | Out-Null
+
+function Set-Interval([int]$seconds) {
+    $script:IntervalSeconds = $seconds
+    $timer.Interval = $seconds * 1000
+
+    foreach ($item in $menuInterval.DropDownItems) {
+        $item.Checked = ($item.Tag -eq $seconds)
+    }
+}
+
+$menuInterval = New-Object System.Windows.Forms.ToolStripMenuItem
+$menuInterval.Text = "Interval"
+foreach ($seconds in 1, 2, 5, 10, 15, 30, 60, 120) {
+    $item = New-Object System.Windows.Forms.ToolStripMenuItem
+    $item.Text = "${seconds}s"
+    $item.Tag  = $seconds
+    $item.Add_Click({ Set-Interval $this.Tag })
+    $menuInterval.DropDownItems.Add($item) | Out-Null
+}
+$trayMenu.Items.Add($menuInterval) | Out-Null
+Set-Interval $IntervalSeconds
+
+$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator)) | Out-Null
 
 $menuExit = New-Object System.Windows.Forms.ToolStripMenuItem
 $menuExit.Text = "Exit"

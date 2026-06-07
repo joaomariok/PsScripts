@@ -75,7 +75,7 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 
 ### How it works
 
-- `param([int]$IntervalSeconds = 60)` — the timer ticks every `$IntervalSeconds`.
+- `param([int]$IntervalSeconds = 30)` — the timer ticks every `$IntervalSeconds`.
 - `[MouseHelper]` is a small inline C# type (via `Add-Type`) wrapping `user32.dll`'s
   `GetCursorPos` (to detect real user movement) and `SendInput` (to reposition the cursor).
   `SendInput` is used instead of `SetCursorPos` because the latter repositions the cursor directly,
@@ -99,9 +99,14 @@ A self-contained WinForms script (not part of the Cleanup module — no nested-m
 - `Switch-Running` (the Start/Stop toggle) is a shared function rather than living inline in a
   click handler, since both the form's button and the tray context-menu item need to invoke it and
   stay in sync.
-- A `NotifyIcon` + `ContextMenuStrip` provide the tray icon (tooltip "Mouse Mover") with "Start/Stop"
-  and "Exit" items. Double-clicking the icon restores the form (`Show`, `WindowState = Normal`,
-  `Activate`).
+- A `NotifyIcon` + `ContextMenuStrip` (with `ShowImageMargin = $false` — by default it reserves a
+  left gutter for icons even when none of the items use one) provide the tray icon
+  (tooltip "Mouse Mover") with "Start/Stop",
+  an "Interval" submenu (predetermined values 1/2/5/10/15/30/60/120s, radio-style via `Set-Interval`
+  checking only the matching `ToolStripMenuItem` by its `Tag`), a separator, and "Exit". Double-
+  clicking the icon restores the form (`Show`, `WindowState = Normal`, `Activate`). `Set-Interval`
+  is called once at startup with `$IntervalSeconds` so the timer and checked menu item start in sync
+  — note that a custom `-IntervalSeconds` value outside the predetermined list leaves no item checked.
 - The tray icon itself reflects running state — a green check (index 294) while active, a red X
   (index 131) while idle — swapped in `Switch-Running` alongside the button/menu text and color.
   Neither exists in `System.Drawing.SystemIcons`, so they're pulled from `shell32.dll` via the
@@ -141,7 +146,7 @@ console window appears — useful for double-click launching.
 ### Running / testing
 
 ```powershell
-# Run directly (default 60s interval):
+# Run directly (default 30s interval):
 .\MouseMover.ps1
 
 # Custom interval:
