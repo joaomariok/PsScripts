@@ -4,6 +4,6 @@ param(
     [switch]$CleanDism
 )
 
-Import-Module "C:\Users\joaom\Scripts\Cleanup" -Force
+Import-Module "$PSScriptRoot" -Force
 
 Clear-System -CleanDism:$CleanDism -WhatIf:$WhatIfPreference
