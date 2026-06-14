@@ -1,7 +1,8 @@
 # Scripts
 
-Personal PowerShell scripts. Contains the **Cleanup** module — a Windows system-cleanup tool — and
-**MouseMover**, a small WinForms utility that nudges the mouse to keep the system from going idle.
+Personal PowerShell scripts. Contains the **Cleanup** module — a Windows system-cleanup tool —
+**MouseMover**, a small WinForms utility that nudges the mouse to keep the system from going idle,
+and **DriveMount**, scripts to mount/unmount a MEGA remote as a drive letter.
 
 ## Setup
 
@@ -79,5 +80,25 @@ the script hidden via `pwsh` (falling back to `powershell` if PowerShell 7+ isn'
 A ready-to-use `MouseMover.zip` (containing `MouseMover.ps1` and `MouseMover.vbs`) is published on
 the [latest release](../../releases/latest) — rebuilt automatically whenever either file changes
 on `main` (or on demand via the workflow's manual trigger).
+
+## DriveMount
+
+Mounts a [MEGA](https://mega.io) remote as a Windows drive letter using
+[rclone](https://rclone.org) and [WinFsp](https://winfsp.dev), both of which must be installed
+(rclone in `PATH`, with a configured `MEGA:` remote). Settings (remote name, drive letter, log
+file, etc.) live in `DriveMount/config.ps1`.
+
+### Usage
+
+```powershell
+# Mount M: (waits up to 15s for the drive to appear)
+DriveMount/mount_mega.ps1
+
+# Check whether it's mounted and whether rclone is running
+DriveMount/status_mega.ps1
+
+# Unmount cleanly
+DriveMount/unmount_mega.ps1
+```
 
 See [CLAUDE.md](CLAUDE.md) for module internals and development notes.
