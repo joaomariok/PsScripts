@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'MouseMover.ps1'
-      - 'MouseMover.vbs'
+      - 'MouseMover/MouseMover.ps1'
+      - 'MouseMover/MouseMover.vbs'
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Zip MouseMover
-        run: zip -j MouseMover.zip MouseMover.ps1 MouseMover.vbs
+        run: zip -j MouseMover.zip MouseMover/MouseMover.ps1 MouseMover/MouseMover.vbs
 
       - name: Create release
         uses: softprops/action-gh-release@v2

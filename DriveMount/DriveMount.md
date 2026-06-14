@@ -33,9 +33,9 @@ command (or local process) can issue commands to it, but it's not reachable off-
 ### Running / testing
 
 ```powershell
-DriveMount/mount_mega.ps1
-DriveMount/status_mega.ps1
-DriveMount/unmount_mega.ps1
+.\mount_mega.ps1
+.\status_mega.ps1
+.\unmount_mega.ps1
 ```
 
 To simulate the unmount fallback path, kill the rclone process directly (so the RC `core/quit`

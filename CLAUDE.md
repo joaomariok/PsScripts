@@ -7,8 +7,8 @@ mount/unmount a MEGA remote as a drive letter via rclone + WinFsp.
 ## Layout
 
 ```
-Cleanup-System.ps1          Entry-point script (run as: Cleanup-System.ps1 -WhatIf)
 Cleanup/
+  Cleanup-System.ps1        Entry-point script (run as: Cleanup\Cleanup-System.ps1 -WhatIf)
   Cleanup.psd1              Module manifest (RootModule = Cleanup.psm1)
   Cleanup.psm1              Root module: Clear-All (orchestration) + Clear-System (entry point)
   Modules/                  Nested modules, imported by Cleanup.psm1
@@ -17,8 +17,9 @@ Cleanup/
     GenericClears.psm1      Clear-DirectoryContents, Clear-AllDirectoryContents, Remove-File, Remove-RegistryKey
     SpecificClears.psm1     Clear-DirectoryServiceDependent, Clear-OldLogFiles, Clear-BrowserCache(s),
                             Clear-TeamsCache(Instance), Clear-UWPAppTemp, Clear-ClipboardContents
-MouseMover.ps1              Standalone WinForms script: Start/Stop GUI that jiggles the mouse when idle
-MouseMover.vbs              Hidden launcher for MouseMover.ps1 (no console window; pwsh, falls back to powershell)
+MouseMover/
+  MouseMover.ps1            Standalone WinForms script: Start/Stop GUI that jiggles the mouse when idle
+  MouseMover.vbs            Hidden launcher for MouseMover.ps1 (no console window; pwsh, falls back to powershell)
 DriveMount/
   config.ps1                Shared settings: remote name, drive letter, log file, rclone RC address/log level, PID file
   mount_mega.ps1             Mounts the MEGA remote as a drive via `rclone mount` (background, WinFsp)
@@ -36,8 +37,8 @@ Get-ChildItem -Recurse -Include *.ps1, *.psm1, *.psd1 | Unblock-File
 
 ## Cleanup, MouseMover, and DriveMount docs
 
-See [Cleanup.md](Cleanup.md) for the Cleanup module's internals (how it works, the nested-module
-import gotcha, running/testing), [MouseMover.md](MouseMover.md) for MouseMover's internals
-(WinForms/tray details, the `.vbs` launcher, running/testing, and the release workflow), and
-[DriveMount.md](DriveMount.md) for DriveMount's internals (rclone/WinFsp prerequisites, the RC
-quit/PID-file fallback, running/testing).
+See [Cleanup/Cleanup.md](Cleanup/Cleanup.md) for the Cleanup module's internals (how it works, the
+nested-module import gotcha, running/testing), [MouseMover/MouseMover.md](MouseMover/MouseMover.md)
+for MouseMover's internals (WinForms/tray details, the `.vbs` launcher, running/testing, and the
+release workflow), and [DriveMount/DriveMount.md](DriveMount/DriveMount.md) for DriveMount's
+internals (rclone/WinFsp prerequisites, the RC quit/PID-file fallback, running/testing).

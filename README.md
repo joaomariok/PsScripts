@@ -26,18 +26,18 @@ Requires Administrator privileges.
 
 ```powershell
 # Dry run (shows what would be removed, changes nothing)
-Cleanup-System.ps1 -WhatIf
+Cleanup\Cleanup-System.ps1 -WhatIf
 
 # Actually clean
-Cleanup-System.ps1
+Cleanup\Cleanup-System.ps1
 
 # Also run DISM component cleanup
-Cleanup-System.ps1 -CleanDism
+Cleanup\Cleanup-System.ps1 -CleanDism
 ```
 
 > Note: `.ps1` scripts aren't matched by bare command name even when their folder is on `PATH`
-> (`.PS1` isn't in `$env:PATHEXT`). Include the extension, e.g. `Cleanup-System.ps1`, or call it
-> via full/relative path (`& "C:\Users\joaom\Scripts\Cleanup-System.ps1"` / `.\Cleanup-System.ps1`).
+> (`.PS1` isn't in `$env:PATHEXT`). Include the extension, e.g. `Cleanup\Cleanup-System.ps1`, or call
+> it via full/relative path (`& "C:\Users\joaom\Scripts\Cleanup\Cleanup-System.ps1"` / `.\Cleanup\Cleanup-System.ps1`).
 
 Every cleanup step supports `-WhatIf`/`-Confirm` (via `SupportsShouldProcess`), so you can safely
 preview what will happen before committing to it.
@@ -66,13 +66,13 @@ Only one instance can run at a time — launching a second one shows a notice an
 
 ```powershell
 # Default: check/move every 30 seconds
-.\MouseMover.ps1
+.\MouseMover\MouseMover.ps1
 
 # Custom interval
-.\MouseMover.ps1 -IntervalSeconds 30
+.\MouseMover\MouseMover.ps1 -IntervalSeconds 30
 ```
 
-To run it detached, with no PowerShell console window, double-click `MouseMover.vbs` — it launches
+To run it detached, with no PowerShell console window, double-click `MouseMover\MouseMover.vbs` — it launches
 the script hidden via `pwsh` (falling back to `powershell` if PowerShell 7+ isn't installed).
 
 ### Download
