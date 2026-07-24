@@ -1,0 +1,109 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "palette": {
+    "black": "#282c34",
+    "red": "#e91e63",
+    "green": "#00B94b",
+    "yellow": "#e5c07b",
+    "blue": "#61afef",
+    "magenta": "#c678dd",
+    "cyan": "#56b6c2",
+    "white": "#dcdfe4",
+	"orange": "#ff4e18",
+    "gray": "#767676",
+    "darkgray": "#464646",
+    "foreground": "#dcdfe4",
+    "background": "#282c34"
+  },
+  "terminal_background": "p:background",
+  "console_title_template": "{{ .PWD }} | {{ .Shell }}",
+  "blocks": [
+    {
+      "alignment": "left",
+      "newline": true,
+      "type": "prompt",
+      "segments": [
+        {
+          "style": "plain",
+          "template": "[<p:gray>{{ .CurrentDate | date .Format }}</>] ",
+          "type": "time",
+          "options": {
+            "time_format": "2006 Jan _2, 15:04:05"
+          }
+        },
+        {
+          "foreground": "p:orange",
+          "style": "plain",
+          "template": "\u26A1",
+          "type": "root"
+        },
+        {
+          "style": "plain",
+          "template": "<p:cyan>{{ .UserName }}</> @ <p:cyan>{{ .HostName }}</> ",
+          "type": "session"
+        },
+        {
+          "style": "plain",
+          "options": {
+            "style": "full"
+          },
+          "template": "| <p:blue>{{ .Path }}</> ",
+          "type": "path"
+        },
+        {
+          "options": {
+            "branch_icon": "",
+            "fetch_status": true
+          },
+          "style": "plain",
+          "template": "(<p:magenta>{{ .HEAD }}</>) ",
+          "type": "git"
+        }
+      ]
+    },
+    {
+      "alignment": "right",
+      "filler": "<p:darkgray>·</>",
+      "type": "prompt",
+      "segments": [
+        {
+          "style": "plain",
+          "options": {
+            "always_enabled": true
+          },
+          "template": " (<p:gray>{{ .FormattedMs }}</>)",
+          "type": "executiontime"
+        }
+      ]
+	},
+    {
+      "alignment": "left",
+      "newline": true,
+      "type": "prompt",
+      "segments": [
+        {
+          "style": "plain",
+          "properties": {
+            "display_mode": "environment",
+            "fetch_virtual_env": true,
+            "display_default": true,
+            "fetch_version": false,
+            "home_enabled": true
+          },
+          "template": "{{ if .Venv }}(<p:yellow>{{ .Venv }}</>) {{ end }}",
+          "type": "python"
+        },
+		{
+          "foreground": "p:foreground",
+          "options": {
+            "always_enabled": true
+          },
+          "style": "plain",
+          "template": "{{ if gt .Code 0 }}<p:red>({{ .Code }}) </>{{ else }}<p:green>({{ .Code }}) </>{{ end }}> ",
+          "type": "status"
+        }
+      ]
+    }
+  ],
+  "version": 4
+}

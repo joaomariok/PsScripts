@@ -18,10 +18,20 @@
 Each file in `Modules/` imports its dependencies relative to its own `$PSScriptRoot` (which equals
 `Cleanup\Modules`, NOT `Cleanup`). E.g. `SpecificClears.psm1` needs both:
 ```powershell
-Import-Module "$PSScriptRoot\Write.psm1" -Force
+Import-Module "$PSScriptRoot\..\..\Common\Common.psd1" -Force
 Import-Module "$PSScriptRoot\GenericClears.psm1" -Force
 ```
-(NOT `$PSScriptRoot\Modules\Write.psm1` — that doubles the path segment and fails to resolve.)
+(NOT `$PSScriptRoot\Modules\GenericClears.psm1` — that doubles the path segment and fails to
+resolve.)
+
+### Dependency on Common
+
+`Test-Elevated`, `Write-Text`, `Write-Title`, and `Write-MainTitle` are no longer defined locally —
+they come from [Common](../Common/Common.md) (`Common/Modules/Guards.psm1` and
+`Common/Modules/Write.psm1`). `Cleanup.psm1`, `GenericClears.psm1`, and `SpecificClears.psm1` each
+import `Common\Common.psd1` independently (module scoping means importing it once in `Cleanup.psm1`
+doesn't make it visible inside the nested modules). This also means `Write-MainTitle`'s separator
+is now full console-buffer-width instead of title-length, per Common's implementation.
 
 All `Import-Module` calls use `-Force`, which cascades: re-importing the root module with `-Force`
 re-executes its top-level imports, which re-execute theirs, ensuring every nested module reloads

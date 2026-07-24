@@ -1,5 +1,4 @@
-Import-Module "$PSScriptRoot\Modules\Write.psm1" -Force
-Import-Module "$PSScriptRoot\Modules\Helpers.psm1" -Force
+Import-Module "$PSScriptRoot\..\Common\Common.psd1" -Force
 Import-Module "$PSScriptRoot\Modules\GenericClears.psm1" -Force
 Import-Module "$PSScriptRoot\Modules\SpecificClears.psm1" -Force
 

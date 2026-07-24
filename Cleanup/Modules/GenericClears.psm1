@@ -1,4 +1,4 @@
-Import-Module "$PSScriptRoot\Write.psm1" -Force
+Import-Module "$PSScriptRoot\..\..\Common\Common.psd1" -Force
 
 function Clear-DirectoryContents
 {
